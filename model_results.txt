@@ -1,0 +1,11 @@
+POROWNANIE MODELI (Rekordow: 724511)
+==================================================
+Random Forest: R2=0.917, MAE=30.73 Mbps, RMSE=85.87 Mbps, Czas=31.8 s
+Histogram Gradient Boosting: R2=0.3863, MAE=174.93 Mbps, RMSE=233.51 Mbps, Czas=7.81 s
+K-Neighbors (KNN): R2=0.8597, MAE=39.69 Mbps, RMSE=111.65 Mbps, Czas=0.71 s
+
+ISTOTNOSC CECH (Random Forest):
+unit_id: 0.920498
+hour_cos: 0.033510
+hour_sin: 0.030656
+day_of_week: 0.015335
