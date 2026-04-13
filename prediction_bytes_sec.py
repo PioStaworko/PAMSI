@@ -18,7 +18,14 @@ from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.neural_network import MLPRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
+    median_absolute_error,
+    max_error,
+    explained_variance_score,
+)
 from sklearn.inspection import permutation_importance
 
 # ── Konfiguracja ────────────────────────────────────────────────────────────
@@ -184,8 +191,22 @@ def evaluate(model, X_train, X_test, y_train, y_test, name: str) -> dict:
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     r2   = r2_score(y_test, y_pred)
     mape = np.mean(np.abs((y_test - y_pred) / (y_test + 1e-9))) * 100
+    
+    # Dodatkowe metryki regresji
+    medae = median_absolute_error(y_test, y_pred)
+    max_err = max_error(y_test, y_pred)
+    evs = explained_variance_score(y_test, y_pred)
 
-    return {"Model": name, "MAE": mae, "RMSE": rmse, "R²": r2, "MAPE (%)": mape}
+    return {
+        "Model": name, 
+        "MAE": mae, 
+        "RMSE": rmse, 
+        "MedAE": medae,
+        "Max Error": max_err,
+        "R²": r2, 
+        "EVS": evs,
+        "MAPE (%)": mape
+    }
 
 
 def run_experiment(df: pd.DataFrame, label: str) -> pd.DataFrame:
@@ -202,6 +223,8 @@ def run_experiment(df: pd.DataFrame, label: str) -> pd.DataFrame:
     )
 
     results = []
+    all_importances = []
+    
     models = build_models()
     for name, model in models.items():
         res = evaluate(model, X_train, X_test, y_train, y_test, name)
@@ -219,15 +242,25 @@ def run_experiment(df: pd.DataFrame, label: str) -> pd.DataFrame:
             importances = imp.importances_mean
             
         imp_df = pd.DataFrame({
+            "Model": name,
             "Cecha": feature_names,
             "Istotność": importances
         }).sort_values(by="Istotność", ascending=False)
         
+        all_importances.append(imp_df)
+        
         print("\n  TOP 10 Najważniejszych cech:")
-        print("  " + imp_df.head(10).to_string(index=False).replace("\n", "\n  "))
+        disp_df = imp_df[["Cecha", "Istotność"]].head(10).copy()
+        disp_df["Istotność"] = disp_df["Istotność"].apply(lambda x: f"{x:.6f}")
+        print("  " + disp_df.to_string(index=False).replace("\n", "\n  "))
         print("  " + "-" * 40)
 
     results_df = pd.DataFrame(results).set_index("Model")
+    
+    combined_imp_df = pd.concat(all_importances, ignore_index=True)
+    combined_imp_df.to_csv("feature_importances.csv", index=False)
+    print("\nZapisano istotność cech do: feature_importances.csv")
+    
     print(f"\nWyniki [{label}]:")
     print(results_df.round(4).to_string())
     return results_df
