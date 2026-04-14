@@ -1,10 +1,3 @@
-"""
-Predykcja bytes_sec (przepustowości) dla danych FCC Measuring Broadband America
-Modele: KNN, Random Forest, Gradient Boosting, MLP
-Dane: curr_lct_ul (upload) - pooling wszystkich unit_id
-Dataset: data-raw-2023-feb
-"""
-
 import pandas as pd
 import numpy as np
 import glob
@@ -24,11 +17,8 @@ from sklearn.metrics import (
     r2_score,
     median_absolute_error,
     max_error,
-    explained_variance_score,
 )
 from sklearn.inspection import permutation_importance
-
-# ── Konfiguracja ────────────────────────────────────────────────────────────
 
 DATA_DIR = ".\\Dane\\dane_2023"   # ścieżka do rozpakowanego archiwum 2023
 
@@ -36,48 +26,22 @@ TARGET = "bytes_sec"
 RANDOM_STATE = 67
 TEST_SIZE = 0.2
 
-# ── Wczytywanie danych ───────────────────────────────────────────────────────
-
-def load_files(pattern: str) -> pd.DataFrame:
-    """Wczytuje wszystkie pliki CSV pasujące do wzorca i łączy w jeden DataFrame."""
-    files = glob.glob(os.path.join(DATA_DIR, pattern))
-    if not files:
-        raise FileNotFoundError(f"Brak plików pasujących do: {os.path.join(DATA_DIR, pattern)}")
-    dfs = []
-    for f in files:
-        try:
-            dfs.append(pd.read_csv(f, low_memory=False))
-        except Exception as e:
-            print(f"  Pominięto {f}: {e}")
-    return pd.concat(dfs, ignore_index=True)
-
+# Wczytywanie danych
 
 def load_dataset() -> pd.DataFrame:
-    """Zwraca df_ul (dane z testów uploadu)."""
-    print(f"Wczytywanie danych z: {DATA_DIR}")
-    df_ul = load_files("curr_lct_ul*")
+    """Wczytuje dane (testy uploadu) bezpośrednio z pliku curr_lct_ul.csv."""
+    file_path = os.path.join(DATA_DIR, "curr_lct_ul.csv")
+    print(f"Wczytywanie danych z: {file_path}")
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Brak pliku: {file_path}")
+    df_ul = pd.read_csv(file_path, low_memory=False)
     print(f"  Upload: {df_ul.shape}")
     return df_ul
 
 
-# ── Przygotowanie cech ───────────────────────────────────────────────────────
+# Przygotowanie cech 
 
 def prepare_features(df: pd.DataFrame, le_target=None, le_error=None, fit=True) -> tuple:
-    """
-    Inżynieria cech dla modeli predykcji bytes_sec.
-    
-    Cechy numeryczne:
-        packets_received, packets_sent, packet_size, bytes_total,
-        duration, successes, failures
-    
-    Cechy czasowe:
-        hour, day_of_week (z dtime)
-    
-    Cechy kategoryczne (label encoded):
-        unit_id, target (serwer), error_code
-    
-    Zwraca: X, y, le_target, le_error
-    """
     df = df.copy()
 
     # Usunięcie wierszy bez celu
@@ -97,12 +61,10 @@ def prepare_features(df: pd.DataFrame, le_target=None, le_error=None, fit=True) 
         df["target_enc"] = le_target.fit_transform(df["target"].astype(str))
         df["error_enc"] = le_error.fit_transform(df["error_code"].astype(str))
     else:
-        df["target_enc"] = df["target"].astype(str).map(
-            lambda x: le_target.transform([x])[0] if x in le_target.classes_ else -1
-        )
-        df["error_enc"] = df["error_code"].astype(str).map(
-            lambda x: le_error.transform([x])[0] if x in le_error.classes_ else -1
-        )
+    
+        target_dict = {klasa: kod for kod, klasa in enumerate(le_target.classes_)}
+        error_dict  = {klasa: kod for kod, klasa in enumerate(le_error.classes_)}
+        df["error_enc"] = df["error_code"].astype(str).map(error_dict).fillna(-1).astype(int)
 
     # unit_id jako cecha numeryczna (pooling)
     df["unit_id"] = pd.to_numeric(df["unit_id"], errors="coerce").fillna(-1).astype(int)
@@ -126,20 +88,9 @@ def prepare_features(df: pd.DataFrame, le_target=None, le_error=None, fit=True) 
     return X, y, le_target, le_error, feature_cols
 
 
-# ── Definicje modeli ─────────────────────────────────────────────────────────
+#  Definicje modeli 
 
 def build_models() -> dict:
-    """
-    Zwraca słownik modeli opakowanych w Pipeline ze StandardScaler.
-    
-    KNN            - baseline nieparametryczny; wymaga skalowania; wolny przy dużych danych
-    Random Forest  - ensemble drzew; odporny na outliery; brak potrzeby skalowania (ale nie zaszkodzi)
-    Gradient Boost - sekwencyjny boosting; często najlepszy dla danych tabelarycznych
-    MLP            - sieć neuronowa (gęsta); wymaga skalowania; może uchwycić nieliniowości
-
-
-    """
-
     return {
         "Random Forest": Pipeline([
             ("scaler", StandardScaler()),
@@ -179,7 +130,7 @@ def build_models() -> dict:
     }
 
 
-# ── Ewaluacja ────────────────────────────────────────────────────────────────
+# Ewaluacja 
 
 def evaluate(model, X_train, X_test, y_train, y_test, name: str) -> dict:
     """Trenuje model i zwraca słownik metryk."""
@@ -195,7 +146,6 @@ def evaluate(model, X_train, X_test, y_train, y_test, name: str) -> dict:
     # Dodatkowe metryki regresji
     medae = median_absolute_error(y_test, y_pred)
     max_err = max_error(y_test, y_pred)
-    evs = explained_variance_score(y_test, y_pred)
 
     return {
         "Model": name, 
@@ -204,7 +154,6 @@ def evaluate(model, X_train, X_test, y_train, y_test, name: str) -> dict:
         "MedAE": medae,
         "Max Error": max_err,
         "R²": r2, 
-        "EVS": evs,
         "MAPE (%)": mape
     }
 
@@ -251,7 +200,7 @@ def run_experiment(df: pd.DataFrame, label: str) -> pd.DataFrame:
         
         print("\n  TOP 10 Najważniejszych cech:")
         disp_df = imp_df[["Cecha", "Istotność"]].head(10).copy()
-        disp_df["Istotność"] = disp_df["Istotność"].apply(lambda x: f"{x:.6f}")
+        disp_df["Istotność"] = disp_df["Istotność"].map("{:.6f}".format)
         print("  " + disp_df.to_string(index=False).replace("\n", "\n  "))
         print("  " + "-" * 40)
 
@@ -266,7 +215,7 @@ def run_experiment(df: pd.DataFrame, label: str) -> pd.DataFrame:
     return results_df
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+# Main 
 
 def main():
     ul = load_dataset()

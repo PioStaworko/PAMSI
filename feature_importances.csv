@@ -1,0 +1,37 @@
+Model,Cecha,Istotność
+Random Forest,duration,0.9537442168928177
+Random Forest,packets_received,0.02325053892253783
+Random Forest,bytes_total,0.022581464901496706
+Random Forest,day_of_week,0.00013620931331207
+Random Forest,hour,0.0001142901477131518
+Random Forest,target_enc,9.243501555337905e-05
+Random Forest,unit_id,8.08448065691971e-05
+Random Forest,packets_sent,0.0
+Random Forest,packet_size,0.0
+Random Forest,successes,0.0
+Random Forest,failures,0.0
+Random Forest,error_enc,0.0
+Gradient Boosting,duration,0.9519098661370836
+Gradient Boosting,packets_received,0.024015942509049638
+Gradient Boosting,bytes_total,0.02361167877213322
+Gradient Boosting,day_of_week,0.00016229418353971107
+Gradient Boosting,unit_id,0.00015052687777259512
+Gradient Boosting,hour,9.261580859912287e-05
+Gradient Boosting,target_enc,5.7075711822222e-05
+Gradient Boosting,packets_sent,0.0
+Gradient Boosting,packet_size,0.0
+Gradient Boosting,successes,0.0
+Gradient Boosting,failures,0.0
+Gradient Boosting,error_enc,0.0
+MLP,packets_received,16.023352967613768
+MLP,bytes_total,14.91234467810815
+MLP,duration,1.6689707164673777
+MLP,unit_id,0.02194304236927236
+MLP,hour,0.00017195025308029964
+MLP,packets_sent,0.0
+MLP,packet_size,0.0
+MLP,successes,0.0
+MLP,failures,0.0
+MLP,error_enc,0.0
+MLP,day_of_week,-8.017980676551239e-05
+MLP,target_enc,-0.0011633981115133807
